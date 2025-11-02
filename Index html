@@ -1,1 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <meta name="description" content="Application de suivi de stats RPG style SAO">
+    <link rel="manifest" href="manifest.json">
+    <title>Nayar Stats - SAO UI</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000;
+            overflow-x: hidden;
+        }
+        .pixelated {
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function SAOUIKit() {
+            const loadSavedData = () => {
+                try {
+                    const saved = localStorage.getItem('sao-ui-data');
+                    if (saved) return JSON.parse(saved);
+                } catch (error) {
+                    console.error('Erreur chargement:', error);
+                }
+                return null;
+            };
+
+            const savedData = loadSavedData();
+            const [hp, setHp] = useState(savedData?.hp || 30);
+            const [showStats, setShowStats] = useState(false);
+            const [selectedStat, setSelectedStat] = useState(null);
+            const [levelUpAnimation, setLevelUpAnimation] = useState(null);
+            const [showGlobalChart, setShowGlobalChart] = useState(false);
+            const [holdInterval, setHoldInterval] = useState(null);
+
+            const maxHp = 30;
+
+            const [physSkills, setPhysSkills] = useState(savedData?.physSkills || [
+                { name: 'Force', abbr: 'FORCE', value: 0, max: 100 },
+                { name: 'Vitesse', abbr: 'VITES', value: 0, max: 100 },
+                { name: 'Souplesse', abbr: 'SOUPL', value: 0, max: 100 },
+                { name: 'Endurance', abbr: 'ENDUR', value: 0, max: 100 },
+                { name: 'Explosivité', abbr: 'EXPLO', value: 0, max: 100 }
+            ]);
+
+            const [intlSkills, setIntlSkills] = useState(savedData?.intlSkills || [
+                { name: 'Logique', abbr: 'LOGIQ', value: 0, max: 100 },
+                { name: 'Compétences pratiques', abbr: 'PRATI', value: 0, max: 100 },
+                { name: 'Langues', abbr: 'LANGU', value: 0, max: 100 },
+                { name: 'Créativité', abbr: 'CREAT', value: 0, max: 100 },
+                { name: 'Connaissance', abbr: 'CONAI', value: 0, max: 100 }
+            ]);
+
+            const [vlntSkills, setVlntSkills] = useState(savedData?.vlntSkills || [
+                { name: 'Disciplines', abbr: 'DISCI', value: 0, max: 100 },
+                { name: 'Détermination', abbr: 'DETER', value: 0, max: 100 },
+                { name: 'Courage', abbr: 'COURA', value: 0, max: 100 },
+                { name: 'Persévérance', abbr: 'PERSE', value: 0, max: 100 },
+                { name: 'Balance', abbr: 'BALAN', value: 0, max: 100 }
+            ]);
+
+            const [spirSkills, setSpirSkills] = useState(savedData?.spirSkills || [
+                { name: 'Foi', abbr: 'FOI', value: 0, max: 100 },
+                { name: 'Prière', abbr: 'PRIER', value: 0, max: 100 },
+                { name: 'Connaissance', abbr: 'CONAI', value: 0, max: 100 },
+                { name: 'Dhikr', abbr: 'DHIKR', value: 0, max: 100 },
+                { name: 'Reconnaissance', abbr: 'RECON', value: 0, max: 100 }
+            ]);
+
+            useEffect(() => {
+                const dataToSave = { hp, physSkills, intlSkills, vlntSkills, spirSkills };
+                try {
+                    localStorage.setItem('sao-ui-data', JSON.stringify(dataToSave));
+                } catch (error) {
+                    console.error('Erreur sauvegarde:', error);
+                }
+            }, [hp, physSkills, intlSkills, vlntSkills, spirSkills]);
+
+            const statSkills = { SPIR: spirSkills, PHYS: physSkills, INTL: intlSkills, VLNT: vlntSkills };
+
+            const getRequiredExp = (level) => {
+                if (level <= 20) return Math.floor(50 + (level * 25));
+                return Math.floor(550 + Math.pow((level - 20), 2.2) * 100);
+            };
+
+            const calculateLevel = (totalExp) => {
+                let level = 0;
+                while (totalExp >= getRequiredExp(level + 1)) level++;
+                return level;
+            };
+
+            const getStatTotal = (skills) => skills.reduce((sum, skill) => sum + skill.value, 0);
+
+            const spirTotal = getStatTotal(spirSkills);
+            const physTotal = getStatTotal(physSkills);
+            const intlTotal = getStatTotal(intlSkills);
+            const vlntTotal = getStatTotal(vlntSkills);
+
+            const spirLevel = calculateLevel(spirTotal);
+            const physLevel = calculateLevel(physTotal);
+            const intlLevel = calculateLevel(intlTotal);
+            const vlntLevel = calculateLevel(vlntTotal);
+
+            const statLevels = { SPIR: spirLevel, PHYS: physLevel, INTL: intlLevel, VLNT: vlntLevel };
+            const statTotals = { SPIR: spirTotal, PHYS: physTotal, INTL: intlTotal, VLNT: vlntTotal };
+
+            const calculateGeneralLevel = () => {
+                const levels = [spirLevel, physLevel, intlLevel, vlntLevel];
+                const maxStatLevel = Math.max(...levels);
+                let generalLevel = 0;
+                
+                for (let targetLevel = 1; targetLevel <= maxStatLevel; targetLevel++) {
+                    const statsAtThisLevel = levels.filter(l => l >= targetLevel).length;
+                    if (statsAtThisLevel >= 4) generalLevel = targetLevel * 4;
+                    else if (statsAtThisLevel >= 3) generalLevel = targetLevel * 3 + (targetLevel - 1);
+                    else if (statsAtThisLevel >= 2) generalLevel = targetLevel * 2 + (targetLevel - 1);
+                    else if (statsAtThisLevel >= 1) generalLevel = targetLevel + (targetLevel - 1);
+                }
+                return Math.max(1, generalLevel);
+            };
+
+            const generalLevel = calculateGeneralLevel();
+
+            const triggerLevelUp = (stat, newLevel) => {
+                setLevelUpAnimation({ stat, level: newLevel });
+                setTimeout(() => setLevelUpAnimation(null), 2000);
+            };
+
+            const addSkillPoint = (statType, skillIndex) => {
+                const updateSkills = (setter, skills, oldLevel) => {
+                    setter(prev => {
+                        const updated = prev.map((skill, index) => 
+                            index === skillIndex && skill.value < skill.max ? { ...skill, value: skill.value + 1 } : skill
+                        );
+                        const newTotal = getStatTotal(updated);
+                        const newLevel = calculateLevel(newTotal);
+                        if (newLevel > oldLevel) setTimeout(() => triggerLevelUp(statType, newLevel), 100);
+                        return updated;
+                    });
+                };
+
+                if (statType === 'PHYS') updateSkills(setPhysSkills, physSkills, physLevel);
+                else if (statType === 'INTL') updateSkills(setIntlSkills, intlSkills, intlLevel);
+                else if (statType === 'VLNT') updateSkills(setVlntSkills, vlntSkills, vlntLevel);
+                else if (statType === 'SPIR') updateSkills(setSpirSkills, spirSkills, spirLevel);
+            };
+
+            const removeSkillPoint = (statType, skillIndex) => {
+                const updateSkills = (setter) => {
+                    setter(prev => prev.map((skill, index) => 
+                        index === skillIndex && skill.value > 0 ? { ...skill, value: skill.value - 1 } : skill
+                    ));
+                };
+
+                if (statType === 'PHYS') updateSkills(setPhysSkills);
+                else if (statType === 'INTL') updateSkills(setIntlSkills);
+                else if (statType === 'VLNT') updateSkills(setVlntSkills);
+                else if (statType === 'SPIR') updateSkills(setSpirSkills);
+            };
+
+            const addHP = () => setHp(prev => Math.min(prev + 1, maxHp));
+            const removeHP = () => setHp(prev => Math.max(prev - 1, 0));
+
+            const startHold = (action, statType, skillIndex) => {
+                if (statType !== undefined) action(statType, skillIndex);
+                else action();
+                const interval = setInterval(() => {
+                    if (statType !== undefined) action(statType, skillIndex);
+                    else action();
+                }, 100);
+                setHoldInterval(interval);
+            };
+
+            const stopHold = () => {
+                if (holdInterval) {
+                    clearInterval(holdInterval);
+                    setHoldInterval(null);
+                }
+            };
+
+            const HeartIcon = () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+            );
+
+            const UserIcon = () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            );
+
+            const ChevronRight = ({ className }) => (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            );
+
+            const PlusIcon = ({ className }) => (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            );
+
+            const MinusIcon = ({ className }) => (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            );
+
+            return (
+                <div className="min-h-screen bg-black p-4 md:p-8 font-sans flex items-center justify-center relative">
+                    {levelUpAnimation && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+                            <div className="relative">
+                                <div className="absolute inset-0 animate-ping">
+                                    <div className="w-64 h-64 bg-cyan-500/30 rounded-full blur-3xl"></div>
+                                </div>
+                                <div className="relative bg-black/90 border-4 border-cyan-400 rounded-lg px-12 py-8 animate-bounce"
+                                     style={{boxShadow: '0 0 60px rgba(0, 217, 255, 0.8)'}}>
+                                    <div className="text-center space-y-3">
+                                        <div className="text-4xl md:text-6xl font-bold text-cyan-400 animate-pulse"
+                                             style={{textShadow: '0 0 20px rgba(0, 217, 255, 1)'}}>LEVEL UP!</div>
+                                        <div className="text-2xl md:text-3xl font-bold text-white">{levelUpAnimation.stat} → Niveau {levelUpAnimation.level}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="max-w-md w-full">
+                        <div className="space-y-4">
+                            <div className="relative bg-black/40 backdrop-blur-sm border-2 border-cyan-500/50 rounded p-4" 
+                                 style={{boxShadow: '0 0 20px rgba(0, 217, 255, 0.3)'}}>
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <svg width="32" height="32" viewBox="0 0 16 16" className="pixelated">
+                                            <rect x="4" y="2" width="8" height="1" fill="#2C2416" />
+                                            <rect x="3" y="3" width="10" height="2" fill="#2C2416" />
+                                            <rect x="3" y="5" width="2" height="2" fill="#2C2416" />
+                                            <rect x="11" y="5" width="2" height="2" fill="#2C2416" />
+                                            <rect x="5" y="5" width="6" height="4" fill="#D4915D" />
+                                            <rect x="6" y="6" width="1" height="1" fill="#2C2416" />
+                                            <rect x="9" y="6" width="1" height="1" fill="#2C2416" />
+                                            <rect x="5" y="5" width="2" height="1" fill="#2C2416" />
+                                            <rect x="9" y="5" width="2" height="1" fill="#2C2416" />
+                                            <rect x="4" y="8" width="8" height="1" fill="#2C2416" />
+                                            <rect x="5" y="9" width="6" height="2" fill="#2C2416" />
+                                            <rect x="6" y="11" width="4" height="1" fill="#2C2416" />
+                                            <rect x="3" y="11" width="10" height="3" fill="#2D5F3F" />
+                                            <rect x="2" y="12" width="12" height="1" fill="#2D5F3F" />
+                                            <rect x="6" y="12" width="4" height="2" fill="#1A1A1A" />
+                                        </svg>
+                                        <span className="text-cyan-400 font-bold text-lg">Nayar</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <HeartIcon />
+                                        <span className="text-green-400 font-bold text-lg">PV</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button onMouseDown={() => startHold(removeHP)} onMouseUp={stopHold} onMouseLeave={stopHold}
+                                                onTouchStart={() => startHold(removeHP)} onTouchEnd={stopHold}
+                                                className="w-8 h-8 rounded border-2 border-red-500/50 bg-black/60 hover:border-red-400 hover:bg-red-500/20 flex items-center justify-center transition-all active:scale-95"
+                                                style={{boxShadow: '0 0 10px rgba(239, 68, 68, 0.3)'}} disabled={hp <= 0}>
+                                            <MinusIcon className="text-red-400" />
+                                        </button>
+                                        <span className="text-white font-mono text-lg">{hp}/{maxHp}</span>
+                                        <button onMouseDown={() => startHold(addHP)} onMouseUp={stopHold} onMouseLeave={stopHold}
+                                                onTouchStart={() => startHold(addHP)} onTouchEnd={stopHold}
+                                                className="w-8 h-8 rounded border-2 border-green-500/50 bg-black/60 hover:border-green-400 hover:bg-green-500/20 flex items-center justify-center transition-all active:scale-95"
+                                                style={{boxShadow: '0 0 10px rgba(0, 255, 65, 0.3)'}} disabled={hp >= maxHp}>
+                                            <PlusIcon className="text-green-400" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="relative h-8 bg-black/60 border border-green-500/30 rounded overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-green-300 transition-all duration-300"
+                                         style={{width: `${(hp / maxHp) * 100}%`, boxShadow: '0 0 15px rgba(0, 255, 65, 0.6)'}}>
+                                        <div className="absolute inset-0 animate-pulse bg-white/20"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="relative bg-black/40 backdrop-blur-sm border-2 border-cyan-500/50 rounded p-4"
+                                 style={{boxShadow: '0 0 20px rgba(0, 217, 255, 0.3)'}}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-cyan-400 font-bold text-2xl">LEVEL {generalLevel}</span>
+                                    <button onClick={() => setShowGlobalChart(!showGlobalChart)} 
+                                            className="relative active:scale-95 transition-transform" 
+                                            style={{width: '40px', height: '40px'}}>
+                                        <svg viewBox="0 0 100 100" className="w-full h-full">
+                                            <polygon points="50,5 95,38 77,90 23,90 5,38" fill="rgba(0, 0, 0, 0.6)" 
+                                                     stroke="#00D9FF" strokeWidth="3"
+                                                     style={{filter: showGlobalChart ? 'drop-shadow(0 0 15px rgba(0, 217, 255, 1))' : 'drop-shadow(0 0 8px rgba(0, 217, 255, 0.5))'}} />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {showGlobalChart && (
+                                <div className="relative bg-black/40 backdrop-blur-sm border-2 border-cyan-500/50 rounded p-4"
+                                     style={{boxShadow: '0 0 30px rgba(0, 217, 255, 0.5)'}}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-cyan-400 font-bold text-lg">VUE D'ENSEMBLE</h3>
+                                        <button onClick={() => setShowGlobalChart(false)} 
+                                                className="text-cyan-400 hover:text-cyan-300 text-3xl leading-none">×</button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            { name: 'Spirituel', abbr: 'SPIR', level: spirLevel, total: spirTotal },
+                                            { name: 'Physique', abbr: 'PHYS', level: physLevel, total: physTotal },
+                                            { name: 'Intelligence'
